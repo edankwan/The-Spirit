@@ -1,0 +1,46 @@
+{
+  "name": "budo-boilderplate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "computed-style": "0.3.0",
+    "dat-gui": "0.5.0",
+    "dom-css": "^1.1.1",
+    "gl-matrix": "^2.3.1",
+    "glsl-random": "^0.0.5",
+    "glsl-noise": "^0.0.0",
+    "incremental-convex-hull": "^1.0.1",
+    "min-signal": "^0.0.5",
+    "mout": "0.11",
+    "quick-loader": "^0.1.4",
+    "raf": "3.0.0",
+    "stats.js": "mrdoob/stats.js",
+    "three": "file:./src/libs/global_three/",
+    "underscore": "^1.8.3",
+    "ws": "^0.8.0"
+  },
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "budo": "^7.1.0",
+    "bundle-collapser": "^1.2.1",
+    "dirlist": "^1.0.2",
+    "glslify": "^5.0.2",
+    "hasha": "^2.2.0",
+    "installify": "^1.0.2",
+    "map-limit": "0.0.1",
+    "minifyify": "^7.1.0",
+    "minimist": "^1.2.0",
+    "opn": "^4.0.0",
+    "pinkie-promise": "^2.0.0",
+    "simple-html-index": "^1.1.2",
+    "uglify-js": "^2.6.1"
+  },
+  "scripts": {
+    "dev": "node dev.js",
+    "build": "node build.js"
+  },
+  "author": "",
+  "license": "MIT"
+}
