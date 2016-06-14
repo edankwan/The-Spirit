@@ -3,6 +3,7 @@ var THREE = require('three');
 var shaderParse = require('../helpers/shaderParse');
 var glslify = require('glslify');
 var simulator = require('./simulator');
+var MeshMotionMaterial = require('./postprocessing/motionBlur/MeshMotionMaterial');
 
 var undef;
 
@@ -85,6 +86,19 @@ function _createParticleMesh() {
         side: THREE.BackSide,
         blending: THREE.NoBlending
     });
+
+    mesh.motionMaterial = new MeshMotionMaterial( {
+        uniforms: {
+            texturePosition: { type: 't', value: undef },
+            texturePrevPosition: { type: 't', value: undef }
+        },
+        vertexShader: shaderParse(glslify('../glsl/particlesMotion.vert')),
+        depthTest: true,
+        depthWrite: true,
+        side: THREE.DoubleSide,
+        blending: THREE.NoBlending
+    });
+
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     container.add(mesh);
@@ -100,23 +114,53 @@ function _createTriangleMesh() {
 
     var PI = Math.PI;
     var angle = PI * 2 / 3;
+    var angles = [
+        Math.sin(angle * 2 + PI),
+        Math.cos(angle * 2 + PI),
+        Math.sin(angle + PI),
+        Math.cos(angle + PI),
+        Math.sin(angle * 3 + PI),
+        Math.cos(angle * 3 + PI),
+        Math.sin(angle * 2),
+        Math.cos(angle * 2),
+        Math.sin(angle),
+        Math.cos(angle),
+        Math.sin(angle * 3),
+        Math.cos(angle * 3)
+    ]
     var i6, i9;
     for(var i = 0; i < AMOUNT; i++ ) {
         i6 = i * 6;
         i9 = i * 9;
-        position[ i9 + 0] = Math.sin(angle * 2 + PI);
-        position[ i9 + 1] = Math.cos(angle * 2 + PI);
-        position[ i9 + 3] = Math.sin(angle + PI);
-        position[ i9 + 4] = Math.cos(angle + PI);
-        position[ i9 + 6] = Math.sin(angle * 3 + PI);
-        position[ i9 + 7] = Math.cos(angle * 3 + PI);
+        if(i % 2) {
+            position[ i9 + 0] = angles[0];
+            position[ i9 + 1] = angles[1];
+            position[ i9 + 3] = angles[2];
+            position[ i9 + 4] = angles[3];
+            position[ i9 + 6] = angles[4];
+            position[ i9 + 7] = angles[5];
 
-        positionFlip[ i9 + 0] = Math.sin(angle * 2);
-        positionFlip[ i9 + 1] = Math.cos(angle * 2);
-        positionFlip[ i9 + 3] = Math.sin(angle);
-        positionFlip[ i9 + 4] = Math.cos(angle);
-        positionFlip[ i9 + 6] = Math.sin(angle * 3);
-        positionFlip[ i9 + 7] = Math.cos(angle * 3);
+            positionFlip[ i9 + 0] = angles[6];
+            positionFlip[ i9 + 1] = angles[7];
+            positionFlip[ i9 + 3] = angles[8];
+            positionFlip[ i9 + 4] = angles[9];
+            positionFlip[ i9 + 6] = angles[10];
+            positionFlip[ i9 + 7] = angles[11];
+        } else {
+            positionFlip[ i9 + 0] = angles[0];
+            positionFlip[ i9 + 1] = angles[1];
+            positionFlip[ i9 + 3] = angles[2];
+            positionFlip[ i9 + 4] = angles[3];
+            positionFlip[ i9 + 6] = angles[4];
+            positionFlip[ i9 + 7] = angles[5];
+
+            position[ i9 + 0] = angles[6];
+            position[ i9 + 1] = angles[7];
+            position[ i9 + 3] = angles[8];
+            position[ i9 + 4] = angles[9];
+            position[ i9 + 6] = angles[10];
+            position[ i9 + 7] = angles[11];
+        }
 
         fboUV[ i6 + 0] = fboUV[ i6 + 2] = fboUV[ i6 + 4] = (i % TEXTURE_WIDTH) / TEXTURE_WIDTH;
         fboUV[ i6 + 1 ] = fboUV[ i6 + 3 ] = fboUV[ i6 + 5 ] = ~~(i / TEXTURE_WIDTH) / TEXTURE_HEIGHT;
@@ -133,7 +177,8 @@ function _createTriangleMesh() {
                 texturePosition: { type: 't', value: undef },
                 flipRatio: { type: 'f', value: 0 },
                 color1: { type: 'c', value: undef },
-                color2: { type: 'c', value: undef }
+                color2: { type: 'c', value: undef },
+                cameraMatrix: { type: 'm4', value: undef }
             }
         ]),
         vertexShader: shaderParse(glslify('../glsl/triangles.vert')),
@@ -143,6 +188,7 @@ function _createTriangleMesh() {
 
     material.uniforms.color1.value = _color1;
     material.uniforms.color2.value = _color2;
+    material.uniforms.cameraMatrix.value = settings.camera.matrixWorld;
 
     var mesh = new THREE.Mesh( geometry, material );
 
@@ -150,12 +196,7 @@ function _createTriangleMesh() {
         uniforms: {
             lightPos: { type: 'v3', value: new THREE.Vector3( 0, 0, 0 ) },
             texturePosition: { type: 't', value: undef },
-            flipRatio: { type: 'f', value: 0 },
-
-            fogDensity: { type: 'f', value: 0.00025 },
-            fogNear: { type: 'f', value: 1 },
-            fogFar: { type: 'f', value: 2000 },
-            fogColor: { type: 'c', value: new THREE.Color( 0xffffff ) }
+            flipRatio: { type: 'f', value: 0 }
         },
         vertexShader: shaderParse(glslify('../glsl/trianglesDistance.vert')),
         fragmentShader: shaderParse(glslify('../glsl/particlesDistance.frag')),
@@ -164,6 +205,20 @@ function _createTriangleMesh() {
         side: THREE.BackSide,
         blending: THREE.NoBlending
     });
+
+    mesh.motionMaterial = new MeshMotionMaterial( {
+        uniforms: {
+            texturePosition: { type: 't', value: undef },
+            texturePrevPosition: { type: 't', value: undef },
+            flipRatio: { type: 'f', value: 0 }
+        },
+        vertexShader: shaderParse(glslify('../glsl/trianglesMotion.vert')),
+        depthTest: true,
+        depthWrite: true,
+        side: THREE.DoubleSide,
+        blending: THREE.NoBlending
+    });
+
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     container.add(mesh);
@@ -185,12 +240,13 @@ function update(dt) {
 
     for(var i = 0; i < 2; i++) {
         mesh = _meshes[i];
-        var lightPos = mesh.customDistanceMaterial.uniforms.lightPos.value;
         mesh.material.uniforms.texturePosition.value = simulator.positionRenderTarget;
         mesh.customDistanceMaterial.uniforms.texturePosition.value = simulator.positionRenderTarget;
-        if(mesh.material.uniforms.flipRatio) {
+        mesh.motionMaterial.uniforms.texturePrevPosition.value = simulator.prevPositionRenderTarget;
+        if(mesh.material.uniforms.flipRatio ) {
             mesh.material.uniforms.flipRatio.value ^= 1;
             mesh.customDistanceMaterial.uniforms.flipRatio.value ^= 1;
+            mesh.motionMaterial.uniforms.flipRatio.value ^= 1;
         }
     }
 }

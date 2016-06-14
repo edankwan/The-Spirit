@@ -28,6 +28,7 @@ exports.update = update;
 exports.initAnimation = 0;
 
 exports.positionRenderTarget = undef;
+exports.prevPositionRenderTarget = undef;
 
 function init(renderer) {
 
@@ -65,8 +66,10 @@ function init(renderer) {
             texturePosition: { type: 't', value: undef },
             textureDefaultPosition: { type: 't', value: undef },
             mouse3d: { type: 'v3', value: new THREE.Vector3 },
+            speed: { type: 'f', value: 1 },
             dieSpeed: { type: 'f', value: 0 },
             radius: { type: 'f', value: 0 },
+            curlSize: { type: 'f', value: 0 },
             attraction: { type: 'f', value: 0 },
             time: { type: 'f', value: 0 },
             initAnimation: { type: 'f', value: 0 }
@@ -146,35 +149,42 @@ function _createPositionTexture() {
 
 function update(dt) {
 
-    var autoClearColor = _renderer.autoClearColor;
-    var clearColor = _renderer.getClearColor().getHex();
-    var clearAlpha = _renderer.getClearAlpha();
+    if(settings.speed || settings.dieSpeed) {
 
-    _renderer.autoClearColor = false;
+        var autoClearColor = _renderer.autoClearColor;
+        var clearColor = _renderer.getClearColor().getHex();
+        var clearAlpha = _renderer.getClearAlpha();
 
-    _positionShader.uniforms.dieSpeed.value = settings.dieSpeed;
-    _positionShader.uniforms.radius.value = settings.radius;
-    _positionShader.uniforms.attraction.value = settings.attraction;
-    _positionShader.uniforms.initAnimation.value = exports.initAnimation;
+        _renderer.autoClearColor = false;
 
-    if(settings.followMouse) {
-        _positionShader.uniforms.mouse3d.value.copy(settings.mouse3d);
-    } else {
-        _followPointTime += dt * 0.001;
-        _followPoint.set(
-            Math.cos(_followPointTime) * 160.0,
-            Math.cos(_followPointTime * 4.0) * 40.0,
-            Math.sin(_followPointTime * 2.0) * 160.0
-        );
-        _positionShader.uniforms.mouse3d.value.lerp(_followPoint, 0.2);
+        _positionShader.uniforms.speed.value = settings.speed;
+        _positionShader.uniforms.dieSpeed.value = settings.dieSpeed;
+        _positionShader.uniforms.radius.value = settings.radius;
+        _positionShader.uniforms.curlSize.value = settings.curlSize;
+        _positionShader.uniforms.attraction.value = settings.attraction;
+        _positionShader.uniforms.initAnimation.value = exports.initAnimation;
+
+        if(settings.followMouse) {
+            _positionShader.uniforms.mouse3d.value.copy(settings.mouse3d);
+        } else {
+            _followPointTime += dt * 0.001 * settings.speed;
+            _followPoint.set(
+                Math.cos(_followPointTime) * 200.0,
+                Math.cos(_followPointTime * 4.0) * 60.0,
+                Math.sin(_followPointTime * 2.0) * 200.0
+            );
+            _positionShader.uniforms.mouse3d.value.lerp(_followPoint, 0.2);
+        }
+
+        // _renderer.setClearColor(0, 0);
+        _updatePosition(dt);
+
+        _renderer.setClearColor(clearColor, clearAlpha);
+        _renderer.autoClearColor = autoClearColor;
+        exports.positionRenderTarget = _positionRenderTarget;
+        exports.prevPositionRenderTarget = _positionRenderTarget2;
+
     }
-
-    // _renderer.setClearColor(0, 0);
-    _updatePosition(dt);
-
-    _renderer.setClearColor(clearColor, clearAlpha);
-    _renderer.autoClearColor = autoClearColor;
-    exports.positionRenderTarget = _positionRenderTarget;
 
 }
 

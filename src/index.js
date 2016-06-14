@@ -11,7 +11,13 @@ var settings = require('./core/settings');
 var math = require('./utils/math');
 var ease = require('./utils/ease');
 var mobile = require('./fallback/mobile');
+var encode = require('mout/queryString/encode');
 
+var postprocessing = require('./3d/postprocessing/postprocessing');
+var motionBlur = require('./3d/postprocessing/motionBlur/motionBlur');
+var fxaa = require('./3d/postprocessing/fxaa/fxaa');
+var bloom = require('./3d/postprocessing/bloom/bloom');
+var fboHelper = require('./3d/fboHelper');
 var simulator = require('./3d/simulator');
 var particles = require('./3d/particles');
 var lights = require('./3d/lights');
@@ -37,6 +43,7 @@ var _initAnimation = 0;
 
 var _bgColor;
 var _logo;
+var _instruction;
 var _footerItems;
 
 function init() {
@@ -72,7 +79,11 @@ function init() {
 
     _camera = new THREE.PerspectiveCamera( 45, 1, 10, 3000);
     _camera.position.set(300, 60, 300).normalize().multiplyScalar(1000);
+    settings.camera = _camera;
     settings.cameraPosition = _camera.position;
+
+    fboHelper.init(_renderer);
+    postprocessing.init(_renderer, _scene, _camera);
 
     simulator.init(_renderer);
     particles.init(_renderer);
@@ -86,6 +97,7 @@ function init() {
     _scene.add(floor.mesh);
 
     _control = new OrbitControls( _camera, _renderer.domElement );
+    _control.target.y = 50;
     _control.maxDistance = 1000;
     _control.minPolarAngle = 0.3;
     _control.maxPolarAngle = Math.PI / 2 - 0.1;
@@ -93,13 +105,22 @@ function init() {
     _control.update();
 
     _gui = new dat.GUI();
-    var simulatorGui = _gui.addFolder('simulator');
-    simulatorGui.add(settings, 'dieSpeed', 0.0005, 0.05);
+    var simulatorGui = _gui.addFolder('Simulator');
+    simulatorGui.add(settings.query, 'amount', settings.amountList).onChange(function(){
+        if (confirm('It will restart the demo')) {
+            window.location.href = window.location.href.split('#')[0] + encode(settings.query).replace('?', '#');
+            window.location.reload();
+        }
+    });
+    simulatorGui.add(settings, 'speed', 0, 3).listen();
+    simulatorGui.add(settings, 'dieSpeed', 0.0005, 0.05).listen();
     simulatorGui.add(settings, 'radius', 0.2, 3);
+    simulatorGui.add(settings, 'curlSize', 0.001, 0.05).listen();
     simulatorGui.add(settings, 'attraction', -2, 2);
     simulatorGui.add(settings, 'followMouse').name('follow mouse');
+    simulatorGui.open();
 
-    var renderingGui = _gui.addFolder('rendering');
+    var renderingGui = _gui.addFolder('Rendering');
     renderingGui.add(settings, 'shadowDarkness', 0, 1).name('shadow');
     renderingGui.add(settings, 'useTriangleParticles').name('new particle');
     renderingGui.addColor(settings, 'color1').name('base Color');
@@ -107,18 +128,68 @@ function init() {
     renderingGui.addColor(settings, 'bgColor').name('background Color');
     renderingGui.open();
 
+
+    var postprocessingGui = _gui.addFolder('Post-Processing');
+    postprocessingGui.add(settings, 'fxaa').listen();
+    motionBlur.maxDistance = 120;
+    motionBlur.motionMultiplier = 7 ;
+    motionBlur.linesRenderTargetScale = settings.motionBlurQualityMap[settings.query.motionBlurQuality];
+    var motionBlurControl = postprocessingGui.add(settings, 'motionBlur');
+    var motionMaxDistance = postprocessingGui.add(motionBlur, 'maxDistance', 1, 300).name('motion distance').listen();
+    var motionMultiplier = postprocessingGui.add(motionBlur, 'motionMultiplier', 0.1, 15).name('motion multiplier').listen();
+    var motionQuality = postprocessingGui.add(settings.query, 'motionBlurQuality', settings.motionBlurQualityList).name('motion quality').onChange(function(val){
+        motionBlur.linesRenderTargetScale = settings.motionBlurQualityMap[val];
+        motionBlur.resize();
+    });
+    var controlList = [motionMaxDistance, motionMultiplier, motionQuality];
+    motionBlurControl.onChange(enableGuiControl.bind(this, controlList));
+    enableGuiControl(controlList, settings.motionBlur);
+
+    var bloomControl = postprocessingGui.add(settings, 'bloom');
+    var bloomRadiusControl = postprocessingGui.add(bloom, 'blurRadius', 0, 3).name('bloom radius');
+    var bloomAmountControl = postprocessingGui.add(bloom, 'amount', 0, 3).name('bloom amount');
+    controlList = [bloomRadiusControl, bloomAmountControl];
+    bloomControl.onChange(enableGuiControl.bind(this, controlList));
+    enableGuiControl(controlList, settings.bloom);
+    postprocessingGui.open();
+
+    function enableGuiControl(controls, flag) {
+        controls = controls.length ? controls : [controls];
+        var control;
+        for(var i = 0, len = controls.length; i < len; i++) {
+            control = controls[i];
+            control.__li.style.pointerEvents = flag ? 'auto' : 'none';
+            control.domElement.parentNode.style.opacity = flag ? 1 : 0.1;
+        }
+    }
+
+    var preventDefault = function(evt){evt.preventDefault();this.blur();};
+    Array.prototype.forEach.call(_gui.domElement.querySelectorAll('input[type="checkbox"],select'), function(elem){
+        elem.onkeyup = elem.onkeydown = preventDefault;
+        elem.style.color = '#000';
+    });
+
     _logo = document.querySelector('.logo');
+    _instruction = document.querySelector('.instruction');
     document.querySelector('.footer').style.display = 'block';
     _footerItems = document.querySelectorAll('.footer span');
 
     window.addEventListener('resize', _onResize);
     window.addEventListener('mousemove', _onMove);
     window.addEventListener('touchmove', _bindTouch(_onMove));
+    window.addEventListener('keyup', _onKeyUp);
 
     _time = Date.now();
     _onResize();
     _loop();
 
+}
+
+function _onKeyUp(evt) {
+    if(evt.keyCode === 32) {
+        settings.speed = settings.speed === 0 ? 1 : 0;
+        settings.dieSpeed = settings.dieSpeed === 0 ? 0.015 : 0;
+    }
 }
 
 function _bindTouch(func) {
@@ -136,9 +207,7 @@ function _onResize() {
     _width = window.innerWidth;
     _height = window.innerHeight;
 
-    _camera.aspect = _width / _height;
-    _camera.updateProjectionMatrix();
-    _renderer.setSize(_width, _height);
+    postprocessing.resize(_width, _height);
 
 }
 
@@ -146,13 +215,15 @@ function _loop() {
     var newTime = Date.now();
     raf(_loop);
     if(settings.useStats) _stats.begin();
-    _render(newTime - _time);
+    _render(newTime - _time, newTime);
     if(settings.useStats) _stats.end();
     _time = newTime;
 }
 
 
-function _render(dt) {
+function _render(dt, newTime) {
+
+    motionBlur.skipMatrixUpdate = !(settings.dieSpeed || settings.speed) && settings.motionBlurPause;
 
     var ratio;
     _bgColor.setStyle(settings.bgColor);
@@ -193,7 +264,18 @@ function _render(dt) {
         _footerItems[i].style.transform = 'translate3d(0,' + ((1 - Math.pow(ratio, 3)) * 50) + 'px,0)';
     }
 
-    _renderer.render(_scene, _camera);
+    ratio = math.unLerp(0.5, 0.6, _initAnimation);
+    if(!settings.isMobile) {
+        _instruction.style.display = ratio ? 'block' : 'none';
+        _instruction.style.transform = 'translate3d(0,' + ((1 - ratio * ratio) * 50) + 'px,0)';
+    }
+
+    fxaa.enabled = !!settings.fxaa;
+    motionBlur.enabled = !!settings.motionBlur;
+    bloom.enabled = !!settings.bloom;
+
+    // _renderer.render(_scene, _camera);
+    postprocessing.render(dt, newTime);
 
 }
 

@@ -29,6 +29,14 @@ function init() {
     pointLight.shadowMapHeight = 2048;
     mesh.add( pointLight );
 
+    var directionalLight = new THREE.DirectionalLight( 0xba8b8b, 0.5 );
+    directionalLight.position.set( 1, 1, 1 );
+    mesh.add( directionalLight );
+
+    var directionalLight2 = new THREE.DirectionalLight( 0x8bbab4, 0.3 );
+    directionalLight2.position.set( 1, 1, -1 );
+    mesh.add( directionalLight2 );
+
 }
 
 function update(dt) {

@@ -7,6 +7,7 @@ attribute vec3 positionFlip;
 attribute vec2 fboUV;
 
 uniform float flipRatio;
+uniform mat4 cameraMatrix;
 
 void main() {
 
@@ -16,9 +17,12 @@ void main() {
     vec4 worldPosition = modelMatrix * vec4( pos, 1.0 );
     vec4 mvPosition = viewMatrix * worldPosition;
 
-    // chunk(shadowmap_vertex);
     vLife = positionInfo.w;
 
-    gl_Position = projectionMatrix * (mvPosition + vec4((position + (positionFlip - position) * flipRatio) * smoothstep(0.0, 0.2, positionInfo.w), 0.0));
+    mvPosition += vec4((position + (positionFlip - position) * flipRatio) * smoothstep(0.0, 0.2, positionInfo.w), 0.0);
+    gl_Position = projectionMatrix * mvPosition;
+    worldPosition = cameraMatrix * mvPosition;
+
+    // chunk(shadowmap_vertex);
 
 }

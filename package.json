@@ -11,6 +11,7 @@
     "gl-matrix": "^2.3.1",
     "glsl-random": "^0.0.5",
     "glsl-noise": "^0.0.0",
+    "glsl-fxaa": "^3.0.0",
     "incremental-convex-hull": "^1.0.1",
     "min-signal": "^0.0.5",
     "mout": "0.11",
