@@ -105,6 +105,12 @@ function init() {
     _control.update();
 
     _gui = new dat.GUI();
+
+    if(settings.isMobile) {
+        _gui.close();
+        _control.enabled = false;
+    }
+
     var simulatorGui = _gui.addFolder('Simulator');
     simulatorGui.add(settings.query, 'amount', settings.amountList).onChange(function(){
         if (confirm('It will restart the demo')) {
@@ -194,6 +200,9 @@ function _onKeyUp(evt) {
 
 function _bindTouch(func) {
     return function (evt) {
+        if(settings.isMobile && evt.preventDefault) {
+            evt.preventDefault();
+        }
         func(evt.changedTouches[0]);
     };
 }

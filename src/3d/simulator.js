@@ -151,6 +151,13 @@ function update(dt) {
 
     if(settings.speed || settings.dieSpeed) {
 
+        var r = 200;
+        var h = 60;
+        if(settings.isMobile) {
+            r = 100;
+            h = 40;
+        }
+
         var autoClearColor = _renderer.autoClearColor;
         var clearColor = _renderer.getClearColor().getHex();
         var clearAlpha = _renderer.getClearAlpha();
@@ -169,9 +176,9 @@ function update(dt) {
         } else {
             _followPointTime += dt * 0.001 * settings.speed;
             _followPoint.set(
-                Math.cos(_followPointTime) * 200.0,
-                Math.cos(_followPointTime * 4.0) * 60.0,
-                Math.sin(_followPointTime * 2.0) * 200.0
+                Math.cos(_followPointTime) * r,
+                Math.cos(_followPointTime * 4.0) * h,
+                Math.sin(_followPointTime * 2.0) * r
             );
             _positionShader.uniforms.mouse3d.value.lerp(_followPoint, 0.2);
         }

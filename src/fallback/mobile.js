@@ -1,11 +1,11 @@
-var isMobile = /(iPad|iPhone|Android)/i.test(navigator.userAgent);
+var settings = require('../core/settings');
 
 exports.pass = pass;
 
 var _callback;
 
 function pass(func) {
-    if(isMobile) {
+    if(settings.isMobile) {
         _callback = func;
         init();
     } else {

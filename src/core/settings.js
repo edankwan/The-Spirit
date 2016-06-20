@@ -3,6 +3,7 @@ var keys = require('mout/object/keys');
 var query = exports.query = parse(window.location.href.replace('#','?'));
 
 exports.useStats = false;
+exports.isMobile = /(iPad|iPhone|Android)/i.test(navigator.userAgent);
 
 var amountMap = {
     '4k' : [64, 64, 0.29],
