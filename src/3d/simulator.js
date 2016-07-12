@@ -150,7 +150,6 @@ function _createPositionTexture() {
 function update(dt) {
 
     if(settings.speed || settings.dieSpeed) {
-
         var r = 200;
         var h = 60;
         if(settings.isMobile) {
@@ -164,8 +163,10 @@ function update(dt) {
 
         _renderer.autoClearColor = false;
 
-        _positionShader.uniforms.speed.value = settings.speed;
-        _positionShader.uniforms.dieSpeed.value = settings.dieSpeed;
+        var deltaRatio = dt / 16.6667;
+
+        _positionShader.uniforms.speed.value = settings.speed * deltaRatio;
+        _positionShader.uniforms.dieSpeed.value = settings.dieSpeed * deltaRatio;
         _positionShader.uniforms.radius.value = settings.radius;
         _positionShader.uniforms.curlSize.value = settings.curlSize;
         _positionShader.uniforms.attraction.value = settings.attraction;
